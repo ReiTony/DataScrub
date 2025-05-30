@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+.env.*
+
+# VSCode workspace
+.vscode/
+
+# Logs and local run artifacts
+*.log
+*.sqlite3
+
+# FastAPI static/generated content
+static/plots/
+static/cleaned/
+static/uploads/
+
+# Jupyter/IPython stuff
+.ipynb_checkpoints
+
+# MacOS / Windows system files
+.DS_Store
+Thumbs.db
+
+# Coverage / testing
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# PyInstaller
+dist/
+build/
+*.spec
