@@ -1,7 +1,9 @@
 import pandas as pd
+import logging
+
 from app.services.data_cleaner import DataCleaner
 from app.services.data_visualizer import DataVisualizer
-import logging
+from app.utils.chatbot import parse_user_intent
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -11,52 +13,46 @@ class ChatEngine:
         self.df = df
         self.output_dir = output_dir
 
-    def handle_prompt(self, prompt: str) -> dict:
-        prompt_lower = prompt.lower()
-        logger.info(f"Received prompt: {prompt}")
+def handle_prompt(self, prompt: str) -> dict:
+    logger.info(f"Received prompt: {prompt}")
 
-        if "clean" in prompt_lower:
-            cleaner = DataCleaner(self.df)
-            cleaned_df, report = cleaner.clean()
-            self.df = cleaned_df 
-            return {
-                "action": "cleaning",
-                "report": report
-            }
+    intent = parse_user_intent(prompt)
+    action = intent.get("action")
 
-        elif "missing" in prompt_lower:
-            missing = self.df.isnull().sum()
-            missing_summary = missing[missing > 0].to_dict()
-            return {
-                "action": "missing_values",
-                "missing_summary": missing_summary
-            }
+    if action == "clean":
+        cleaner = DataCleaner(self.df)
+        if intent.get("standardize", True):
+            cleaner.standardize_columns()
+        if intent.get("drop_duplicates", True):
+            cleaner.drop_duplicates()
+        if intent.get("handle_nulls", True):
+            cleaner.handle_nulls()
+        if intent.get("handle_outliers", True):
+            cleaner.handle_outliers()
+        self.df, report = cleaner.df, cleaner.report
+        return {"action": "cleaning", "report": report}
 
-        elif "visualize" in prompt_lower or "plot" in prompt_lower:
-            visualizer = DataVisualizer(self.df, self.output_dir)
-            plot_paths = visualizer.visualize()
-            return {
-                "action": "visualization",
-                "plots": plot_paths
-            }
-
-        elif "heatmap" in prompt_lower:
-            visualizer = DataVisualizer(self.df, self.output_dir)
+    elif action == "visualize":
+        visualizer = DataVisualizer(self.df, self.output_dir)
+        if intent.get("histograms", True):
+            visualizer.plot_histograms()
+        if intent.get("heatmap", False):
             visualizer.plot_correlation_heatmap()
-            return {
-                "action": "heatmap",
-                "plots": [f"{self.output_dir}/correlation_heatmap.png"]
-            }
+        if intent.get("boxplots", False):
+            visualizer.plot_boxplots()
+        return {"action": "visualization", "plots": visualizer.generated_plots}
 
-        elif "summary" in prompt_lower or "describe" in prompt_lower:
-            summary = self.df.describe(include="all").fillna("").to_dict()
-            return {
-                "action": "summary_stats",
-                "summary": summary
-            }
+    elif action == "summary":
+        summary = self.df.describe(include="all").fillna("").to_dict()
+        return {"action": "summary_stats", "summary": summary}
 
-        else:
-            return {
-                "action": "unknown",
-                "message": "Sorry, I didn't understand that. Try 'clean the dataset', 'show missing values', or 'visualize'."
-            }
+    elif action == "missing_values":
+        missing = self.df.isnull().sum()
+        missing_summary = missing[missing > 0].to_dict()
+        return {"action": "missing_values", "missing_summary": missing_summary}
+
+    else:
+        return {
+            "action": "unknown",
+            "message": "Sorry, I didn’t understand that. Try something like 'clean the dataset' or 'visualize heatmap only'."
+        }
